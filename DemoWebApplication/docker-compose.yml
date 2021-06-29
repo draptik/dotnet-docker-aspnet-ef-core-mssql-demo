@@ -1,6 +1,7 @@
 version: '3.9'
 
 services:
+  
   webapi:
     image: ${DOCKER_REGISTRY-}demowebapp1
     ports:
@@ -8,3 +9,11 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+  
+  db:
+    image: "mcr.microsoft.com/mssql/server:2019-latest"
+    environment:
+      SA_PASSWORD: "Str0ngPa$$w0rd"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
