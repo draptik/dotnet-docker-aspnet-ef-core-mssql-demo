@@ -9,11 +9,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    depends_on:
+      - db
   
   db:
     image: "mcr.microsoft.com/mssql/server:2019-latest"
     environment:
-      SA_PASSWORD: "Str0ngPa$$w0rd"
       ACCEPT_EULA: "Y"
+      SA_PASSWORD: Str0ngPa$$w0rd
     ports:
       - "1433:1433"
+    volumes:
+      - mssql-demo:/var/opt/mssql
+
+volumes: 
+  mssql-demo:
+    external: true

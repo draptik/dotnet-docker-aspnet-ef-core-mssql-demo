@@ -1,5 +1,7 @@
 #!/bin/sh
 
+## Manually start "frontend"
+
 ## Endpoint on host: http://localhost:5000/weatherforecast
 
 IMAGE_NAME=demowebapp1
