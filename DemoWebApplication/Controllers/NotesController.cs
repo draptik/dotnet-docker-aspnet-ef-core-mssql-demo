@@ -22,6 +22,8 @@ namespace DemoWebApplication.Controllers
         [HttpGet]
         public async Task<IActionResult> Get()
         {
+            _logger.LogInformation("Calling NotesController.Get...");
+            
             var notes = await _db.Notes.ToListAsync();
             return new JsonResult(notes);
         }
