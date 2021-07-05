@@ -27,7 +27,7 @@ We will create 2 docker containers:
 
 - Remove all `Weatherforecst` references and files.
 - Add folder `Models`, add class `Notes` to folder.
-- Add new controller `NotesController`.
+- Add new controller `NotesController` with `Get` and `Seed` methods.
 - Add new controller `HealthCheckController`.
 - Add OpenAPI (`Swashbuckle`).
 - Test application by visiting `http://localhost:5000/notes` and `http://localhost/healthcheck`.
@@ -60,7 +60,7 @@ ENTRYPOINT ["dotnet", "DemoWebApplication.dll"]
 This is the default docker file as recommended by Microsoft. Please see the official docs for
 further explanations.
 
-Add the `DcokerDefaultTargetOS` element to the `DemoWebApplication.csproj` file:
+Add the `DockerDefaultTargetOS` element to the `DemoWebApplication.csproj` file:
 
 ```xml
 <PropertyGroup>
@@ -138,7 +138,7 @@ should contain 1 entry with name `My-Initial-Migration`.
 We can now remove the ms-sql docker container, restart it, and confirm the using a docker volume
 persisted our data in the database even though the docker container was recycled.
 
-Add 1 or 2 data entries to the `Notes` table manually, so we have some values to check later.
+Optional: Add 1 or 2 data entries to the `Notes` table manually, so we have some values to check later.
 
 ## Step 7: Wiring things up using docker compose
 
@@ -186,5 +186,7 @@ We now have to rebuild the web-docker image (`docker build -t demowebapp1 .`).
 Finally, we can start docker compose using the command `docker-compose up`.
 
 Verify by visiting `http://localhost/notes`: It should return a JSON string containing the few
-manual entries we added to the database at the end of Step 6.
+manual entries we added to the database at the end of Step 6. In case no data was created, we can visit
+the Swagger site under `http://localhost/index.html` and invoke the POST method to seed some demo data into the db.
+
 
