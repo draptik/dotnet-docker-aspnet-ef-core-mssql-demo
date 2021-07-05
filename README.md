@@ -22,6 +22,10 @@ Once I understand how everything works I might look into IDE tooling support (bu
 - I started with a default Web API template using dotnet5.
 - Added a Dockerfile, and 2 scripts: 1 to build the image, the other to start a container.
 
+## Instructions
+
+See [notes.md](notes.md) for a step-by-step manual.
+
 ## Resources
 
 - https://docs.docker.com/samples/aspnet-mssql-compose/
