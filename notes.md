@@ -1,12 +1,14 @@
-# docker compose ASP.NET with MS-SQL
+# docker-compose ASP.NET with MS-SQL
 
-Howto setup docker containers running ASP.NET Core and MS-SQL, orchestrated using docker compose.
+TL/DR: This document describes how to setup docker containers running ASP.NET Core and MS-SQL, 
+orchestrated using `docker-compose`.
 
 Tech stack:
 
-- ASP.NET Core (v5.x)
-- EntityFramework Core (v5.x)
-- MS-SQL Server 2019
+- ASP.NET Core (v5.x) -> .NET REST API backend
+- EntityFramework Core (v5.x) -> OR-Mapper
+- Swashbuckle (v5.6.x) -> OpenAPI / Swagger
+- MS-SQL Server 2019 -> Database
 - Host OS: linux
 
 We will create 2 docker containers:
@@ -14,9 +16,17 @@ We will create 2 docker containers:
 - ASP.NET Core WebAPI
 - MS-SQL
 
+## Prerequisites
+
+Basic knowledge / understanding of:
+
+- dotnet web-api
+- EntityFramework (including migrations)
+- Docker
+
 ## Step 1: Create a WebAPI project using the default template
 
-`dotnet new web-api -o DemoWebApplication`
+`dotnet new webapi -o DemoWebApplication`
 
 ## Step 2: Create a solution file
 
@@ -29,38 +39,43 @@ We will create 2 docker containers:
 - Add folder `Models`, add class `Notes` to folder.
 - Add new controller `NotesController` with `Get` and `Seed` methods.
 - Add new controller `HealthCheckController`.
-- Add OpenAPI (`Swashbuckle`).
-- Test application by visiting `http://localhost:5000/notes` and `http://localhost/healthcheck`.
+- Add OpenAPI (`Swashbuckle`) to `Startup.cs`.
+- Deactivate https redirection in `Startup.cs` (HTTPS certificates in linux docker containers is another challenge, not covered here).
+- Test application by visiting:
+  - `http://localhost:5000/index.html` -> Swagger
+  - `http://localhost:5000/notes` -> "HTTP-GET" should return all notes
+  - and `http://localhost:5000/healthcheck` -> should return "ok"
 
-## Step 4: Create docker container for web appliction
+## Step 4: Create docker container for web application
 
 Create a file `Dockerfile` with the following content:
 
 ```docker
-FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS base
-WORKDIR /app
-
 FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
 WORKDIR /src
-COPY ["DemoWebApplication.csproj", "DemoWebApplication/"]
+
+# Copy csproj aand restore nuget packages
+COPY "DemoWebApplication.csproj" "DemoWebApplication/"
 RUN dotnet restore "DemoWebApplication/DemoWebApplication.csproj"
+
+# Copy everything else and publish (publish includes build)
 COPY . "DemoWebApplication"
 WORKDIR "/src/DemoWebApplication"
-RUN dotnet build "DemoWebApplication.csproj" -c Development -o /app/build
-
-FROM build AS publish
 RUN dotnet publish "DemoWebApplication.csproj" -c Development -o /app/publish
 
-FROM base AS final
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:5.0
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "DemoWebApplication.dll"]
 ```
 
-This is the default docker file as recommended by Microsoft. Please see the official docs for
-further explanations.
+This is the default docker file for ASP.NET as recommended by Docker 
+(see [Create a Dockerfile for an ASP.NET Core application](https://docs.docker.com/samples/dotnetcore/#create-a-dockerfile-for-an-aspnet-core-application) for details). 
 
-Add the `DockerDefaultTargetOS` element to the `DemoWebApplication.csproj` file:
+The above `Dockerfile` is just an example. Feel free to tweak it to your needs.
+
+Add the `DockerDefaultTargetOS` element to the `DemoWebApplication.csproj` file (TODO: Check if this is necessary):
 
 ```xml
 <PropertyGroup>
@@ -87,7 +102,7 @@ docker run \
   ${IMAGE_NAME}
 ```
 
-Verify by visiting `http://localhost:5000/healthcheck` in browser. Once we have checked that the
+Verify by visiting `http://localhost:5000/healthcheck`. Once we have checked that the
 application works inside the docker container, we can remove the docker container (`docker kill
 DOCKER_ID`).
 
@@ -112,41 +127,43 @@ Options explained:
   restrictions by MS-SQL...)
 - `-p <HOST_PORT>:<CONTAINER_PORT>` configures the ports to be used on the host and inside the
   docker container
-- `-v <VOLUME_NAME>:<LOCATION_IN_CONTAINER>` configures a docker volume to persist data
+- `-v <VOLUME_NAME>:<LOCATION_IN_CONTAINER>` **configures a docker volume to persist data**
 - `-d <DOCKER_IMAGE_NAME>` name of the docker image to be used
 
-Verify the container started successfully and didn't crash using `docker ps -a`: The status column should NOT be
-`Excited`.
+Verify the container started successfully and didn't crash using `docker ps -a`: 
+The status column should NOT be `Excited`.
 
 Stop and remove the container once everything works: `docker stop DOCKER_ID` and `docker rm
-DOCKERID`.
+DOCKER_ID`.
 
-## Step 6: Setup EFCore, create and apply db migration
+## Step 6: Setup EF-Core, create and apply db migration
 
 - Create custom DbContext (`AppDbContext`)
 - Add configuration to `Startup.cs` -> `ConfigureServices`
 - Add a connectionString section to `appsettings.json`. Use `localhost` as server name.
+  Example: `"AppDbContext": "Server=localhost;Database=AppDbContext;User=sa;Password=Str0ngPa$$w0rd;"`. 
+  **IMPORTANT: We will have to change `localhost` later when using `docker-compose`!**
 - Create migration: `dotnet ef migrations add My-Initial-Migration`. This will create a new folder
   `Migrations` with autogenerated C# code. 
 - Start the ms-sql docker container manually (see Step 4)
 - The generated migration is applied to the database using `dotnet ef database update`.
 
 Using a tool of your choice verify that the migration has been applied to the database. The database
-should now contain 2 tables: `EF_Migration_History` and `Notes`. The table `EF_Migration_History`
-should contain 1 entry with name `My-Initial-Migration`.
+should now contain 2 tables: `__EFMigrationsHistory` and `Notes`. The table `__EFMigrationsHistory`
+should contain 1 entry with `MigrationId` `<Date_of_migration>_My-Initial-Migration`.
 
-We can now remove the ms-sql docker container, restart it, and confirm the using a docker volume
+We can now remove the ms-sql docker container, restart it, and confirm the using a **docker volume**
 persisted our data in the database even though the docker container was recycled.
 
-Optional: Add 1 or 2 data entries to the `Notes` table manually, so we have some values to check later.
+Optional: Add some data entries to the `Notes` table manually, so we have some values to check later.
 
 ## Step 7: Wiring things up using docker compose
 
 Before moving on, ensure that all docker containers are removed.
 
-Instead of manually executing both docker containers using `docker run...`, we will use `docker
-compose` to orchestrate both containers from a single config file. Save the following content to a
-file named `docker-compose.yml`:
+Instead of manually executing both docker containers using `docker run...`, we will 
+use `docker-compose` to orchestrate both containers from a single config file. 
+Save the following content to a file named `docker-compose.yml`:
 
 ```yaml
 version: '3.9'
@@ -178,15 +195,20 @@ volumes:
     external: true
 ```
 
-Ensure that the connection string in `appsettings.json` uses the same database name as in the
-`docker-compose.yml` file (here: `db`)!
+IMPORTANT: Ensure that the connection string in `appsettings.json` uses 
+the same database name as in the `docker-compose.yml` file (here: `db`)!
 
-We now have to rebuild the web-docker image (`docker build -t demowebapp1 .`).
+Whenever we make changes to our code we have to execute `docker build`. 
+`docker-compose` has a helpful command for this: 
+`docker-compose build` will check if there are any changes requiring a rebuild 
+of the docker container.
 
-Finally, we can start docker compose using the command `docker-compose up`.
+Finally, we can start `docker-compose` using the command `docker-compose up`.
 
-Verify by visiting `http://localhost/notes`: It should return a JSON string containing the few
-manual entries we added to the database at the end of Step 6. In case no data was created, we can visit
-the Swagger site under `http://localhost/index.html` and invoke the POST method to seed some demo data into the db.
+Verify by visiting `http://localhost:5000/notes`: It should return a JSON string 
+containing the few manual entries we added to the database at the end of 
+Step 6. In case no data was created, we can visit the Swagger site 
+at `http://localhost:5000/index.html` and invoke the POST method to seed some 
+demo data into the database.
 
 
