@@ -49,7 +49,7 @@ namespace DemoWebApplication
                 c.RoutePrefix = string.Empty;
             });
 
-            // TODO add https once docker & db works
+            // Ignore HTTPS for now, because this is another beast with linux & docker
             // app.UseHttpsRedirection();
 
             app.UseRouting();
