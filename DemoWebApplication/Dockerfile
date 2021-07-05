@@ -1,18 +1,18 @@
-﻿FROM mcr.microsoft.com/dotnet/aspnet:5.0 AS base
-WORKDIR /app
-
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
+﻿FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build
 WORKDIR /src
-COPY ["DemoWebApplication.csproj", "DemoWebApplication/"]
+
+# Copy csproj and restore nuget packages
+COPY "DemoWebApplication.csproj" "DemoWebApplication/"
 RUN dotnet restore "DemoWebApplication/DemoWebApplication.csproj"
+
+# Copy everything else and publish (publish includes build)
+# NOTE: "everything else" respects the `.dockerignore` file
 COPY . "DemoWebApplication"
 WORKDIR "/src/DemoWebApplication"
-RUN dotnet build "DemoWebApplication.csproj" -c Development -o /app/build
+RUN dotnet publish "DemoWebApplication.csproj" -c Release -o /app/publish
 
-FROM build AS publish
-RUN dotnet publish "DemoWebApplication.csproj" -c Development -o /app/publish
-
-FROM base AS final
+# Build runtime image
+FROM mcr.microsoft.com/dotnet/aspnet:5.0
 WORKDIR /app
-COPY --from=publish /app/publish .
+COPY --from=build /app/publish .
 ENTRYPOINT ["dotnet", "DemoWebApplication.dll"]
