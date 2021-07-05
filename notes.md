@@ -30,6 +30,8 @@ Basic knowledge / understanding of:
 
 ## Step 2: Create a solution file
 
+Optional: This is only needed for your IDE (Rider, VS, VS-Code).
+
 - `dotnet new sln`
 - `dotnet sln add DemoWebApplication/DemoWebApplication.csproj`
 
